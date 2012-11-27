@@ -2,13 +2,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-
-
-
+typedef struct {
+  //Opcode opcode;
+} Instruction;
 
 int ParseRegFromString(char* string) {
   printf("\n parsing reg! for %s\n, will parse %s", string, string + 1);
-  return atoi(string++);
+  return *(string+1) - '0';
 }
 
 int main(int argc, char* argv[]) {

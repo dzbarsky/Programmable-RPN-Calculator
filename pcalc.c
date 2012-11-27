@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+int error = 0;
+
 typedef enum {
   CONST,
   PUSH,
@@ -29,6 +31,8 @@ typedef struct StackValue_tag {
   struct StackValue_tag* next;
 } StackValue;
 
+StackValue* stack = 0;
+
 typedef struct {
   Command command;
   union {
@@ -43,10 +47,38 @@ typedef struct {
   } u;
 } Instruction;
 
-Instruction* Instructions;
+Instruction* Instructions = 0;
+
+int R[8];
 
 int ParseRegFromString(char* string) {
   return *(string+1) - '0';
+}
+
+void PushValue(int value) {
+  StackValue* newTop = malloc(sizeof(StackValue));
+  if (!newTop) {
+    printf("Could not push value because out of memory!\n");
+    error = 1;
+    return;
+  }
+  newTop->value = value;
+  newTop->next = stack;
+  stack = newTop;
+}
+
+int PopValue() {
+  int value;
+  if (!stack) {
+    printf("Attempting to use value from empty stack!\n");
+    error = 1;
+    return 0;
+  }
+  value = stack->value;
+  StackValue* newTop = stack->next;
+  free(stack);
+  stack = newTop;
+  return value;
 }
 
 int main(int argc, char* argv[]) {
@@ -61,8 +93,8 @@ int main(int argc, char* argv[]) {
   }
   int reg;
   int value;
-  int error = 0;
   int nInstructions = 0;
+  int i;
 
   if (argc != 2) {
     printf("Please supply exactly one script to execute!\n");
@@ -144,6 +176,54 @@ int main(int argc, char* argv[]) {
       goto error;
     }
     nInstructions++;
+  }
+
+  for (i = 0; i < 8; i++) {
+    R[i] = 0;
+  }
+
+  for (i = 0; i < nInstructions; i++) {
+    printf("Executing instruction: %i\n", Instructions[i].command);
+    switch (Instructions[i].command) {
+      case CONST:
+        R[Instructions[i].u.valueReg.reg] = Instructions[i].u.valueReg.value;
+        break;
+      case PUSH:
+        PushValue(R[Instructions[i].u.valueReg.reg]);
+        break;
+      case POP:
+        R[Instructions[i].u.valueReg.reg] = PopValue();
+        break;
+      case PRINTNUM:
+      {
+        if (!stack) {
+          printf("Attempting to pop empty stack!\n");
+          error = 1;
+          goto error;
+        }
+        printf("%i\n", stack->value);
+        break;
+      }
+      case ADD:
+        PushValue(PopValue() + PopValue());
+        break;
+      case SUB:
+        PushValue(PopValue() - PopValue());
+        break;
+      case MPY:
+        PushValue(PopValue() * PopValue());
+        break;
+      case DIV:
+        PushValue(PopValue() / PopValue());
+        break;
+      case MOD:
+        PushValue(PopValue() % PopValue());
+        break;
+    }
+
+    if (error) {
+      goto error;
+    }
   }
 
 error:

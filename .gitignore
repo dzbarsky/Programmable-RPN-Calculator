@@ -1,5 +1,6 @@
 # Object files
 *.o
+pcalc
 
 # Libraries
 *.lib
@@ -10,6 +11,7 @@
 *.so
 *.so.*
 *.dylib
+*.dSym
 
 # Executables
 *.exe

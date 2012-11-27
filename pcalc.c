@@ -42,7 +42,7 @@ typedef struct {
     } valueReg;
     struct {
       int reg;
-      char* value;
+      char* label;
     } labelReg;
   } u;
 } Instruction;
@@ -81,6 +81,11 @@ int PopValue() {
   return value;
 }
 
+int GetPcForLabel(char* label) {
+  //TODO: implement me!
+  return 1;
+}
+
 int main(int argc, char* argv[]) {
   FILE* file;
   size_t nbytes = 20;
@@ -94,7 +99,7 @@ int main(int argc, char* argv[]) {
   int reg;
   int value;
   int nInstructions = 0;
-  int i;
+  int pc;
 
   if (argc != 2) {
     printf("Please supply exactly one script to execute!\n");
@@ -169,7 +174,13 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(command, "JSR", 3) == 0) {
       //TODO: implement me
     } else if (strncmp(command, "JMPR", 4) == 0) {
-      //TODO: implement me
+      if (sscanf(line, "%s %s", command, regString) != 2) {
+        printf("Error reading file: JMPR command is malformed!\n");
+        error = 1;
+        goto error;
+      }
+      Instructions[nInstructions].command = JMPR;
+      Instructions[nInstructions].u.labelReg.reg = ParseRegFromString(regString);
     } else {
       printf("Unknown command encountered!\n");
       error = 1;
@@ -178,21 +189,21 @@ int main(int argc, char* argv[]) {
     nInstructions++;
   }
 
-  for (i = 0; i < 8; i++) {
-    R[i] = 0;
+  for (pc = 0; pc < 8; pc++) {
+    R[pc] = 0;
   }
 
-  for (i = 0; i < nInstructions; i++) {
-    printf("Executing instruction: %i\n", Instructions[i].command);
-    switch (Instructions[i].command) {
+  for (pc = 0; pc < nInstructions; pc++) {
+    printf("Executing instruction: %i\n", Instructions[pc].command);
+    switch (Instructions[pc].command) {
       case CONST:
-        R[Instructions[i].u.valueReg.reg] = Instructions[i].u.valueReg.value;
+        R[Instructions[pc].u.valueReg.reg] = Instructions[pc].u.valueReg.value;
         break;
       case PUSH:
-        PushValue(R[Instructions[i].u.valueReg.reg]);
+        PushValue(R[Instructions[pc].u.valueReg.reg]);
         break;
       case POP:
-        R[Instructions[i].u.valueReg.reg] = PopValue();
+        R[Instructions[pc].u.valueReg.reg] = PopValue();
         break;
       case PRINTNUM:
       {
@@ -219,6 +230,37 @@ int main(int argc, char* argv[]) {
       case MOD:
         PushValue(PopValue() % PopValue());
         break;
+      case LABEL:
+        break;
+      case BRANCHn:
+      case BRANCHz:
+      case BRANCHp:
+      case BRANCHnz:
+      case BRANCHnp:
+      case BRANCHzp:
+      case BRANCHnzp:
+        break;
+      case JSR:
+      {
+        PushValue(pc + 1);
+        pc = GetPcForLabel(Instructions[pc].u.labelReg.label) - 1; //The for loop will increment the PC at the end
+        if (pc < 0) {
+          printf("Could not find label %s", Instructions[pc].u.labelReg.label);
+          error = 1;
+          goto error;
+        }
+        break;
+      }
+      case JMPR:
+      {
+        pc = R[Instructions[pc].u.labelReg.reg] - 1; //The for loop will increment the PC at the end
+        if (pc < 0 || pc >= nInstructions) {
+          printf("Attempting to JMPR to %i, which is out of range", pc);
+          error = 1;
+          goto error;
+        }
+        break;
+      }
     }
 
     if (error) {

@@ -18,10 +18,16 @@ typedef enum {
   BRANCHp,
   BRANCHnz,
   BRANCHnp,
+  BRANCHzp,
   BRANCHnzp,
   JSR,
   JMPR
 } Command;
+
+typedef struct StackValue_tag {
+  int value;
+  struct StackValue_tag* next;
+} StackValue;
 
 typedef struct {
   Command command;
@@ -37,13 +43,9 @@ typedef struct {
   } u;
 } Instruction;
 
-Instruction* InstructionsList;
-Instruction* GetInstructions() {
-  return InstructionsList;
-}
+Instruction* Instructions;
 
 int ParseRegFromString(char* string) {
-  printf("\n parsing reg! for %s\n, will parse %s", string, string + 1);
   return *(string+1) - '0';
 }
 
@@ -60,6 +62,7 @@ int main(int argc, char* argv[]) {
   int reg;
   int value;
   int error = 0;
+  int nInstructions = 0;
 
   if (argc != 2) {
     printf("Please supply exactly one script to execute!\n");
@@ -75,40 +78,58 @@ int main(int argc, char* argv[]) {
   }
 
   while (getline(&line, &nbytes, file) != -1) {
+    nInstructions++;
+  }
+
+  printf("Will read %i lines", nInstructions);
+  Instructions = (Instruction*)malloc(sizeof(Instruction) * nInstructions);
+  rewind(file);
+  nInstructions = 0;
+
+  while (getline(&line, &nbytes, file) != -1) {
     if (sscanf(line, "%s", command) != 1) {
       printf("Error reading file: Line is missing command!\n");
       error = 1;
       goto error;
     }
-    printf("\n found command: %s__", command);
+    printf("found command: %s\n", command);
     if (strcmp(command, "CONST") == 0) {
       if (sscanf(line, "%s %s %i", command, regString, &value) != 3) {
         printf("Error reading file: CONST command is malformed!\n");
         error = 1;
         goto error;
       }
-      reg = ParseRegFromString(regString);
-      printf("parsed const reg %i", reg);
+      Instructions[nInstructions].command = CONST;
+      Instructions[nInstructions].u.valueReg.value = value;
+      Instructions[nInstructions].u.valueReg.reg = ParseRegFromString(regString);
     } else if (strncmp(command, "PUSH", 4) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: PUSH command is malformed!\n");
         error = 1;
         goto error;
       }
-      reg = ParseRegFromString(regString);
+      Instructions[nInstructions].command = PUSH;
+      Instructions[nInstructions].u.valueReg.reg = ParseRegFromString(regString);
     } else if (strncmp(command, "POP", 3) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: POP command is malformed!\n");
         error = 1;
         goto error;
       }
-      reg = ParseRegFromString(regString);
+      Instructions[nInstructions].command = POP;
+      Instructions[nInstructions].u.valueReg.reg = ParseRegFromString(regString);
     } else if (strncmp(command, "PRINTNUM", 8) == 0) {
+      Instructions[nInstructions].command = PRINTNUM;
     } else if (strncmp(command, "ADD", 3) == 0) {
+      Instructions[nInstructions].command = ADD;
     } else if (strncmp(command, "SUB", 3) == 0) {
+      Instructions[nInstructions].command = SUB;
     } else if (strncmp(command, "MPY", 3) == 0) {
+      Instructions[nInstructions].command = MPY;
     } else if (strncmp(command, "DIV", 3) == 0) {
+      Instructions[nInstructions].command = DIV;
     } else if (strncmp(command, "MOD", 3) == 0) {
+      Instructions[nInstructions].command = MOD;
     } else if (strncmp(command, "LABEL", 5) == 0) {
      // TODO: implement me
     } else if (strncmp(command, "BRANCH", 5) == 0) {
@@ -117,13 +138,19 @@ int main(int argc, char* argv[]) {
       //TODO: implement me
     } else if (strncmp(command, "JMPR", 4) == 0) {
       //TODO: implement me
+    } else {
+      printf("Unknown command encountered!\n");
+      error = 1;
+      goto error;
     }
+    nInstructions++;
   }
 
 error:
   free(line);
   free(command);
   free(regString);
+  fclose(file);
 
   if (error) {
     return -1;

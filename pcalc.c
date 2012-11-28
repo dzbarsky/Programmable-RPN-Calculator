@@ -390,7 +390,7 @@ error:
     free(labels->label);
     LabelList* next = labels->next;
     free(labels);
-    labels = labels->next;
+    labels = next;
   }
 
   if (error) {

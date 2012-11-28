@@ -35,15 +35,10 @@ StackValue* stack = 0;
 
 typedef struct {
   Command command;
+  int reg;
   union {
-    struct {
-      int reg;
-      int value;
-    } valueReg;
-    struct {
-      int reg;
-      char* label;
-    } labelReg;
+    int value;
+    char* label;
   } u;
 } Instruction;
 
@@ -137,8 +132,8 @@ int main(int argc, char* argv[]) {
         goto error;
       }
       Instructions[nInstructions].command = CONST;
-      Instructions[nInstructions].u.valueReg.value = value;
-      Instructions[nInstructions].u.valueReg.reg = ParseRegFromString(regString);
+      Instructions[nInstructions].u.value = value;
+      Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else if (strncmp(command, "PUSH", 4) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: PUSH command is malformed!\n");
@@ -146,7 +141,7 @@ int main(int argc, char* argv[]) {
         goto error;
       }
       Instructions[nInstructions].command = PUSH;
-      Instructions[nInstructions].u.valueReg.reg = ParseRegFromString(regString);
+      Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else if (strncmp(command, "POP", 3) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: POP command is malformed!\n");
@@ -154,7 +149,7 @@ int main(int argc, char* argv[]) {
         goto error;
       }
       Instructions[nInstructions].command = POP;
-      Instructions[nInstructions].u.valueReg.reg = ParseRegFromString(regString);
+      Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else if (strncmp(command, "PRINTNUM", 8) == 0) {
       Instructions[nInstructions].command = PRINTNUM;
     } else if (strncmp(command, "ADD", 3) == 0) {
@@ -180,7 +175,7 @@ int main(int argc, char* argv[]) {
         goto error;
       }
       Instructions[nInstructions].command = JMPR;
-      Instructions[nInstructions].u.labelReg.reg = ParseRegFromString(regString);
+      Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else {
       printf("Unknown command encountered!\n");
       error = 1;
@@ -197,13 +192,13 @@ int main(int argc, char* argv[]) {
     printf("Executing instruction: %i\n", Instructions[pc].command);
     switch (Instructions[pc].command) {
       case CONST:
-        R[Instructions[pc].u.valueReg.reg] = Instructions[pc].u.valueReg.value;
+        R[Instructions[pc].reg] = Instructions[pc].u.value;
         break;
       case PUSH:
-        PushValue(R[Instructions[pc].u.valueReg.reg]);
+        PushValue(R[Instructions[pc].reg]);
         break;
       case POP:
-        R[Instructions[pc].u.valueReg.reg] = PopValue();
+        R[Instructions[pc].reg] = PopValue();
         break;
       case PRINTNUM:
       {
@@ -243,9 +238,9 @@ int main(int argc, char* argv[]) {
       case JSR:
       {
         PushValue(pc + 1);
-        pc = GetPcForLabel(Instructions[pc].u.labelReg.label) - 1; //The for loop will increment the PC at the end
+        pc = GetPcForLabel(Instructions[pc].u.label) - 1; //The for loop will increment the PC at the end
         if (pc < 0) {
-          printf("Could not find label %s", Instructions[pc].u.labelReg.label);
+          printf("Could not find label %s", Instructions[pc].u.label);
           error = 1;
           goto error;
         }
@@ -253,7 +248,7 @@ int main(int argc, char* argv[]) {
       }
       case JMPR:
       {
-        pc = R[Instructions[pc].u.labelReg.reg] - 1; //The for loop will increment the PC at the end
+        pc = R[Instructions[pc].reg] - 1; //The for loop will increment the PC at the end
         if (pc < 0 || pc >= nInstructions) {
           printf("Attempting to JMPR to %i, which is out of range", pc);
           error = 1;

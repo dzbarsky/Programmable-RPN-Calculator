@@ -228,12 +228,25 @@ int main(int argc, char* argv[]) {
       case LABEL:
         break;
       case BRANCHn:
+        pc = R[Instructions[pc].reg] < 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
+        break;
       case BRANCHz:
+        pc = R[Instructions[pc].reg] == 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
+        break;
       case BRANCHp:
+        pc = R[Instructions[pc].reg] > 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
+        break;
       case BRANCHnz:
+        pc = R[Instructions[pc].reg] <= 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
+        break;
       case BRANCHnp:
+        pc = R[Instructions[pc].reg] != 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
+        break;
       case BRANCHzp:
+        pc = R[Instructions[pc].reg] >= 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
+        break;
       case BRANCHnzp:
+        pc = GetPcForLabel(Instructions[pc].u.label - 1);
         break;
       case JSR:
       {
@@ -268,6 +281,10 @@ error:
   free(command);
   free(regString);
   fclose(file);
+
+  while (stack) {
+    PopValue();
+  }
 
   if (error) {
     return -1;

@@ -43,6 +43,7 @@ typedef struct {
 } Instruction;
 
 Instruction* Instructions = 0;
+int nInstructions = 0;
 
 int R[8];
 
@@ -77,8 +78,15 @@ int PopValue() {
 }
 
 int GetPcForLabel(char* label) {
-  //TODO: implement me!
-  return 1;
+
+  int i;
+  for (i = 0; i < nInstructions; i++) {
+    if (Instructions[i].command == LABEL && Instructions[i].u.label == label) {
+      return i;
+    }
+  }
+
+  return -1;
 }
 
 int main(int argc, char* argv[]) {
@@ -87,13 +95,13 @@ int main(int argc, char* argv[]) {
   char* line = malloc(nbytes + 1);
   char* command = malloc(9);
   char* regString = malloc(3);
-  if (!line || !command || !regString) {
+  char* label = malloc(100);
+  if (!line || !command || !regString || !label) {
     printf("Could not allocate memory!\n");
     return -1;
   }
   int reg;
   int value;
-  int nInstructions = 0;
   int pc;
 
   if (argc != 2) {
@@ -113,7 +121,6 @@ int main(int argc, char* argv[]) {
     nInstructions++;
   }
 
-  printf("Will read %i lines", nInstructions);
   Instructions = (Instruction*)malloc(sizeof(Instruction) * nInstructions);
   rewind(file);
   nInstructions = 0;
@@ -163,9 +170,40 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(command, "MOD", 3) == 0) {
       Instructions[nInstructions].command = MOD;
     } else if (strncmp(command, "LABEL", 5) == 0) {
-     // TODO: implement me
+      if (sscanf(line, "%s %s", command, label) != 2) {
+        printf("Error reading file: LABEL command is malformed!\n");
+        error = 1;
+        goto error;
+      }
+      Instructions[nInstructions].command = LABEL;
+      Instructions[nInstructions].u.label = label;
     } else if (strncmp(command, "BRANCH", 5) == 0) {
-      //TODO: implement me
+      if (sscanf(line, "%s %s %s", command, regString, label) != 3) {
+        printf("Error reading file: BRANCH command is malformed!\n");
+        error = 1;
+        goto error;
+      }
+      Instructions[nInstructions].reg = ParseRegFromString(regString);
+      Instructions[nInstructions].u.label = label;
+      if (strcmp(command, "BRANCHn") == 0) {
+        Instructions[nInstructions].command = BRANCHn;
+      } else if (strcmp(command, "BRANCHz") == 0) {
+        Instructions[nInstructions].command = BRANCHz;
+      } else if (strcmp(command, "BRANCHp") == 0) {
+        Instructions[nInstructions].command = BRANCHp;
+      } else if (strcmp(command, "BRANCHnz") == 0) {
+        Instructions[nInstructions].command = BRANCHnz;
+      } else if (strcmp(command, "BRANCHzp") == 0) {
+        Instructions[nInstructions].command = BRANCHzp;
+      } else if (strcmp(command, "BRANCHnp") == 0) {
+        Instructions[nInstructions].command = BRANCHnp;
+      } else if (strcmp(command, "BRANCHnzp") == 0) {
+        Instructions[nInstructions].command = BRANCHnzp;
+      } else {
+        printf("Unknown BRANCH command encountered!\n");
+        error = 1;
+        goto error;
+      }
     } else if (strncmp(command, "JSR", 3) == 0) {
       //TODO: implement me
     } else if (strncmp(command, "JMPR", 4) == 0) {
@@ -189,7 +227,6 @@ int main(int argc, char* argv[]) {
   }
 
   for (pc = 0; pc < nInstructions; pc++) {
-    printf("Executing instruction: %i\n", Instructions[pc].command);
     switch (Instructions[pc].command) {
       case CONST:
         R[Instructions[pc].reg] = Instructions[pc].u.value;

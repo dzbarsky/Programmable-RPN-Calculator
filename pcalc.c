@@ -317,6 +317,8 @@ error:
   free(line);
   free(command);
   free(regString);
+  free(Instructions);
+  free(label);
   fclose(file);
 
   while (stack) {

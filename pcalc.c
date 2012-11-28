@@ -33,6 +33,14 @@ typedef struct StackValue_tag {
 
 StackValue* stack = 0;
 
+typedef struct Label_tag {
+  int pc;
+  char* label;
+  struct Label_tag* next;
+} LabelList;
+
+LabelList* labels = 0;
+
 typedef struct {
   Command command;
   int reg;
@@ -78,14 +86,13 @@ int PopValue() {
 }
 
 int GetPcForLabel(char* label) {
-
-  int i;
-  for (i = 0; i < nInstructions; i++) {
-    if (Instructions[i].command == LABEL && Instructions[i].u.label == label) {
-      return i;
+  LabelList* currlabel = labels;
+  while (currlabel) {
+    if (strcmp(currlabel->label, label) == 0) {
+      return currlabel->pc;
     }
+    currlabel = currlabel->next;
   }
-
   return -1;
 }
 
@@ -122,6 +129,11 @@ int main(int argc, char* argv[]) {
   }
 
   Instructions = (Instruction*)malloc(sizeof(Instruction) * nInstructions);
+  if (!Instructions) {
+    printf("Could not allocate needed memory!\n");
+    error = 1;
+    goto error;
+  }
   rewind(file);
   nInstructions = 0;
 
@@ -176,7 +188,22 @@ int main(int argc, char* argv[]) {
         goto error;
       }
       Instructions[nInstructions].command = LABEL;
-      Instructions[nInstructions].u.label = label;
+
+      LabelList* newLabel = malloc(sizeof(LabelList));
+      if (!newLabel) {
+        printf("Could not allocate needed memory!\n");
+        error = 1;
+        goto error;
+      }
+      newLabel->label = strdup(label);
+      if (!newLabel->label) {
+        printf("Could not allocate needed memory!\n");
+        error = 1;
+        goto error;
+      }
+      newLabel->pc = nInstructions;
+      newLabel->next = labels;
+      labels = newLabel;
     } else if (strncmp(command, "BRANCH", 5) == 0) {
       if (sscanf(line, "%s %s %s", command, regString, label) != 3) {
         printf("Error reading file: BRANCH command is malformed!\n");
@@ -184,7 +211,12 @@ int main(int argc, char* argv[]) {
         goto error;
       }
       Instructions[nInstructions].reg = ParseRegFromString(regString);
-      Instructions[nInstructions].u.label = label;
+      Instructions[nInstructions].u.label = strdup(label);
+      if (!Instructions[nInstructions].u.label) {
+        printf("Could not allocate needed memory!\n");
+        error = 1;
+        goto error;
+      }
       if (strcmp(command, "BRANCHn") == 0) {
         Instructions[nInstructions].command = BRANCHn;
       } else if (strcmp(command, "BRANCHz") == 0) {
@@ -205,7 +237,18 @@ int main(int argc, char* argv[]) {
         goto error;
       }
     } else if (strncmp(command, "JSR", 3) == 0) {
-      //TODO: implement me
+      if (sscanf(line, "%s %s", command, label) != 2) {
+        printf("Error reading file: JSR command is malformed!\n");
+        error = 1;
+        goto error;
+      }
+      Instructions[nInstructions].command = JSR;
+      Instructions[nInstructions].u.label = strdup(label);
+      if (!Instructions[nInstructions].u.label) {
+        printf("Could not allocate needed memory!\n");
+        error = 1;
+        goto error;
+      }
     } else if (strncmp(command, "JMPR", 4) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: JMPR command is malformed!\n");
@@ -317,12 +360,37 @@ error:
   free(line);
   free(command);
   free(regString);
-  free(Instructions);
   free(label);
+
+  // Free the labels
+  for (pc = 0; pc < nInstructions; pc++) {
+    switch(Instructions[pc].command) {
+      case BRANCHn:
+      case BRANCHz:
+      case BRANCHp:
+      case BRANCHnz:
+      case BRANCHnp:
+      case BRANCHzp:
+      case BRANCHnzp:
+      case JSR:
+        free(Instructions[pc].u.label);
+      default:
+        break;
+    }
+  }
+
+  free(Instructions);
   fclose(file);
 
   while (stack) {
     PopValue();
+  }
+
+  while (labels) {
+    free(labels->label);
+    LabelList* next = labels->next;
+    free(labels);
+    labels = labels->next;
   }
 
   if (error) {

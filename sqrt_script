@@ -27,7 +27,7 @@ PUSH R4              top has 1, B
 ADD                  top has B+1
 POP R2               R2 = B
 PUSH R2
-BRANCHnzpb R4 LOOP
+BRANCHnzp R4 LOOP
 LABEL RET
 CONST R4 -1
 PUSH R4

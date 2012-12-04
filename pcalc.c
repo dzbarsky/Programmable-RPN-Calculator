@@ -284,7 +284,7 @@ int main(int argc, char* argv[]) {
       case PRINTNUM:
       {
         if (!stack) {
-          printf("Attempting to pop empty stack!\n");
+          printf("Attempting to print from empty stack!\n");
           error = 1;
           goto error;
         }
@@ -345,7 +345,7 @@ int main(int argc, char* argv[]) {
         pc = R[Instructions[pc].reg] >= 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
         break;
       case BRANCHnzp:
-        pc = GetPcForLabel(Instructions[pc].u.label - 1);
+        pc = GetPcForLabel(Instructions[pc].u.label) - 1;
         break;
       case JSR:
       {

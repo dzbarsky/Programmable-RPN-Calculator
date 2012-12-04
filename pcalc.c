@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
   int reg;
   int value;
   int pc;
+  int hadBlankLine = 0;
 
   if (argc != 2) {
     printf("Please supply exactly one script to execute!\n");
@@ -139,11 +140,15 @@ int main(int argc, char* argv[]) {
 
   while (getline(&line, &nbytes, file) != -1) {
     if (sscanf(line, "%s", command) != 1) {
-      printf("Error reading file: Line is missing command!\n");
+      hadBlankLine = 1;
+      continue;
+    }
+    printf("found command: %s\n", command);
+    if (hadBlankLine) {
+      printf("Error reading file: Commands cannot follow blank line\n");
       error = 1;
       goto error;
     }
-    printf("found command: %s\n", command);
     if (strcmp(command, "CONST") == 0) {
       if (sscanf(line, "%s %s %i", command, regString, &value) != 3) {
         printf("Error reading file: CONST command is malformed!\n");
@@ -265,10 +270,6 @@ int main(int argc, char* argv[]) {
     nInstructions++;
   }
 
-  for (pc = 0; pc < 8; pc++) {
-    R[pc] = 0;
-  }
-
   for (pc = 0; pc < nInstructions; pc++) {
     switch (Instructions[pc].command) {
       case CONST:
@@ -300,11 +301,29 @@ int main(int argc, char* argv[]) {
         PushValue(PopValue() * PopValue());
         break;
       case DIV:
-        PushValue(PopValue() / PopValue());
+      {
+        int numer = PopValue();
+        int denom = PopValue();
+        if (denom == 0) {
+          printf("Error!  Attempting to divide by 0!\n");
+          error = 1;
+          goto error;
+        }
+        PushValue(numer / denom);
         break;
+      }
       case MOD:
-        PushValue(PopValue() % PopValue());
+      {
+        int numer = PopValue();
+        int denom = PopValue();
+        if (denom == 0) {
+          printf("Error!  Attempting to mod by 0!\n");
+          error = 1;
+          goto error;
+        }
+        PushValue(numer % denom);
         break;
+      }
       case LABEL:
         break;
       case BRANCHn:

@@ -1,36 +1,31 @@
-CONST R1 4
+CONST R1 33
+CONST R2 23
 PUSH R1
-JSR SQRT
-LABEL SQRTRET
+PUSH R2
+JSR GCD
 PRINTNUM
 JSR END
 LABEL ThesePRINTNUMSShouldNotPrint
 PRINTNUM
 PRINTNUM
 PRINTNUM
-LABEL SQRT
+LABEL GCD           Call is of form (a, b) - stack is a, b
 POP R7
-POP R1               top is Empty
-CONST R2 0           = B
-PUSH R2              top has B
-BRANCHn R1 RET      if A < 0 goto RET
-LABEL LOOP
-PUSH R2              top has B, B
-MPY                  top has B^2
-PUSH R1              top has A, B^2
-SUB                  top has A - B^2
-POP R3               R3 = A - B^2
-PUSH R2              top has B
-BRANCHn R3 RET       if B^2 > A, goto RET
-CONST R4 1
-PUSH R4              top has 1, B
-ADD                  top has B+1
-POP R2               R2 = B
+POP R2               top is a
+BRANCHnp R2 DOGCD
+JMPR R7              return a
+LABEL DOGCD
+POP R1               need to switch top for mod
+PUSH R2              top is b
+PUSH R1              top is b, a
+MOD                  top is a%b
+POP R1
+PUSH R7
 PUSH R2
-BRANCHnzp R4 LOOP
-LABEL RET
-CONST R4 -1
-PUSH R4
-ADD
+PUSH R1              return address, b, a%b
+JSR GCD              call gcd(b, a%b)
+POP R1               top is return address
+POP R7
+PUSH R1              put return address back on stack
 JMPR R7
 LABEL END

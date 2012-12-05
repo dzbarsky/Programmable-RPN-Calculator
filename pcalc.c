@@ -114,14 +114,12 @@ int main(int argc, char* argv[]) {
 
   if (argc != 2) {
     printf("Please supply exactly one script to execute!\n");
-    error = 1;
     goto error;
   }
 
   file = fopen(argv[1], "rt");
   if (!file) {
     printf("Error opening file %s!\n", argv[1]);
-    error = 1;
     goto error;
   }
 
@@ -132,7 +130,6 @@ int main(int argc, char* argv[]) {
   Instructions = (Instruction*)malloc(sizeof(Instruction) * nInstructions);
   if (!Instructions) {
     printf("Could not allocate needed memory!\n");
-    error = 1;
     goto error;
   }
   rewind(file);
@@ -146,13 +143,11 @@ int main(int argc, char* argv[]) {
     printf("found command: %s\n", command);
     if (hadBlankLine) {
       printf("Error reading file: Commands cannot follow blank line\n");
-      error = 1;
       goto error;
     }
     if (strcmp(command, "CONST") == 0) {
       if (sscanf(line, "%s %s %i", command, regString, &value) != 3) {
         printf("Error reading file: CONST command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].command = CONST;
@@ -161,7 +156,6 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(command, "PUSH", 4) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: PUSH command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].command = PUSH;
@@ -169,7 +163,6 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(command, "POP", 3) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: POP command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].command = POP;
@@ -189,7 +182,6 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(command, "LABEL", 5) == 0) {
       if (sscanf(line, "%s %s", command, label) != 2) {
         printf("Error reading file: LABEL command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].command = LABEL;
@@ -197,13 +189,11 @@ int main(int argc, char* argv[]) {
       LabelList* newLabel = malloc(sizeof(LabelList));
       if (!newLabel) {
         printf("Could not allocate needed memory!\n");
-        error = 1;
         goto error;
       }
       newLabel->label = strdup(label);
       if (!newLabel->label) {
         printf("Could not allocate needed memory!\n");
-        error = 1;
         goto error;
       }
       newLabel->pc = nInstructions;
@@ -212,14 +202,12 @@ int main(int argc, char* argv[]) {
     } else if (strncmp(command, "BRANCH", 5) == 0) {
       if (sscanf(line, "%s %s %s", command, regString, label) != 3) {
         printf("Error reading file: BRANCH command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].reg = ParseRegFromString(regString);
       Instructions[nInstructions].u.label = strdup(label);
       if (!Instructions[nInstructions].u.label) {
         printf("Could not allocate needed memory!\n");
-        error = 1;
         goto error;
       }
       if (strcmp(command, "BRANCHn") == 0) {
@@ -238,33 +226,28 @@ int main(int argc, char* argv[]) {
         Instructions[nInstructions].command = BRANCHnzp;
       } else {
         printf("Unknown BRANCH command encountered!\n");
-        error = 1;
         goto error;
       }
     } else if (strncmp(command, "JSR", 3) == 0) {
       if (sscanf(line, "%s %s", command, label) != 2) {
         printf("Error reading file: JSR command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].command = JSR;
       Instructions[nInstructions].u.label = strdup(label);
       if (!Instructions[nInstructions].u.label) {
         printf("Could not allocate needed memory!\n");
-        error = 1;
         goto error;
       }
     } else if (strncmp(command, "JMPR", 4) == 0) {
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: JMPR command is malformed!\n");
-        error = 1;
         goto error;
       }
       Instructions[nInstructions].command = JMPR;
       Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else {
       printf("Unknown command encountered!\n");
-      error = 1;
       goto error;
     }
     nInstructions++;
@@ -285,7 +268,6 @@ int main(int argc, char* argv[]) {
       {
         if (!stack) {
           printf("Attempting to print from empty stack!\n");
-          error = 1;
           goto error;
         }
         printf("%i\n", stack->value);
@@ -306,7 +288,6 @@ int main(int argc, char* argv[]) {
         int denom = PopValue();
         if (denom == 0) {
           printf("Error!  Attempting to divide by 0!\n");
-          error = 1;
           goto error;
         }
         PushValue(numer / denom);
@@ -318,7 +299,6 @@ int main(int argc, char* argv[]) {
         int denom = PopValue();
         if (denom == 0) {
           printf("Error!  Attempting to mod by 0!\n");
-          error = 1;
           goto error;
         }
         PushValue(numer % denom);
@@ -353,7 +333,6 @@ int main(int argc, char* argv[]) {
         pc = GetPcForLabel(Instructions[pc].u.label) - 1; //The for loop will increment the PC at the end
         if (pc < 0) {
           printf("Could not find label %s", Instructions[pc].u.label);
-          error = 1;
           goto error;
         }
         break;
@@ -363,7 +342,6 @@ int main(int argc, char* argv[]) {
         pc = R[Instructions[pc].reg] - 1; //The for loop will increment the PC at the end
         if (pc < 0 || pc >= nInstructions) {
           printf("Attempting to JMPR to %i, which is out of range", pc);
-          error = 1;
           goto error;
         }
         break;
@@ -371,17 +349,19 @@ int main(int argc, char* argv[]) {
     }
 
     if (error) {
-      goto error;
+      goto cleanup;
     }
   }
 
-error:
+// Yeah, I know.  Goto considered harmful.  This is the cleanest way to make
+// sure we clean up in case of errors.
+cleanup:
   free(line);
   free(command);
   free(regString);
   free(label);
 
-  // Free the labels
+  // Free the labels in the instructions
   for (pc = 0; pc < nInstructions; pc++) {
     switch(Instructions[pc].command) {
       case BRANCHn:
@@ -401,10 +381,12 @@ error:
   free(Instructions);
   fclose(file);
 
+  // Free any elements left on the stack
   while (stack) {
     PopValue();
   }
 
+  // Free the label data structure we're holding
   while (labels) {
     free(labels->label);
     LabelList* next = labels->next;
@@ -417,5 +399,9 @@ error:
   }
 
   return 0;
+
+error:
+  error = 1;
+  goto cleanup;
 }
 

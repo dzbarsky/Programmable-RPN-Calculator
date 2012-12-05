@@ -1,7 +1,10 @@
+// David Zbarsky
+// RPN Calculator
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
+// Error flag for returning proper error code and cleaning up
 int error = 0;
 
 typedef enum {
@@ -26,21 +29,26 @@ typedef enum {
   JMPR
 } Command;
 
+// Used to hold values on the stack
 typedef struct StackValue_tag {
   int value;
   struct StackValue_tag* next;
 } StackValue;
 
+// Global stack
 StackValue* stack = 0;
 
+// Used to create a table of lables
 typedef struct Label_tag {
   int pc;
   char* label;
   struct Label_tag* next;
 } LabelList;
 
+// Global table labels
 LabelList* labels = 0;
 
+// An Instruction represents one line of a script
 typedef struct {
   Command command;
   int reg;
@@ -50,15 +58,20 @@ typedef struct {
   } u;
 } Instruction;
 
+// The array of instructions
 Instruction* Instructions = 0;
+// The number of instructions
 int nInstructions = 0;
 
+// The registers
 int R[8];
 
+// Used to parse commands such as PUSH, POP, BRANCH
 int ParseRegFromString(char* string) {
   return *(string+1) - '0';
 }
 
+// Used to push a value onto the stack
 void PushValue(int value) {
   StackValue* newTop = malloc(sizeof(StackValue));
   if (!newTop) {
@@ -71,6 +84,7 @@ void PushValue(int value) {
   stack = newTop;
 }
 
+// Pops a value from the stack and returns it
 int PopValue() {
   int value;
   if (!stack) {
@@ -85,6 +99,7 @@ int PopValue() {
   return value;
 }
 
+// Given a label, this function looks up the pc for it in the label table
 int GetPcForLabel(char* label) {
   LabelList* currlabel = labels;
   while (currlabel) {
@@ -96,13 +111,14 @@ int GetPcForLabel(char* label) {
   return -1;
 }
 
+// the main function takes a filename as an argument and executes it.
 int main(int argc, char* argv[]) {
   FILE* file;
   size_t nbytes = 20;
   char* line = malloc(nbytes + 1);
-  char* command = malloc(9);
+  char* command = malloc(9); // the longest command is 8 chars long
   char* regString = malloc(3);
-  char* label = malloc(100);
+  char* label = malloc(200); // If you want your labels longer than this, then you're outta luck
   if (!line || !command || !regString || !label) {
     printf("Could not allocate memory!\n");
     return -1;
@@ -117,12 +133,15 @@ int main(int argc, char* argv[]) {
     goto error;
   }
 
+  // Open the file for reading
   file = fopen(argv[1], "rt");
   if (!file) {
     printf("Error opening file %s!\n", argv[1]);
     goto error;
   }
 
+  // Count the number of instructions, so we can allocate them in contiguous
+  // memory
   while (getline(&line, &nbytes, file) != -1) {
     nInstructions++;
   }
@@ -135,16 +154,22 @@ int main(int argc, char* argv[]) {
   rewind(file);
   nInstructions = 0;
 
+  // Read the file line by line, parsing instructions.
+  // I chose to use sscanf to parse lines, which allows comments.  For example,
+  // when reading the line:
+  // CONST R2 5 Set initial bounds
+  // we see CONST, so we parse R2 and 5, and ignore everything after that.
   while (getline(&line, &nbytes, file) != -1) {
     if (sscanf(line, "%s", command) != 1) {
       hadBlankLine = 1;
       continue;
     }
-    printf("found command: %s\n", command);
+    // Don't allow blank lines
     if (hadBlankLine) {
       printf("Error reading file: Commands cannot follow blank line\n");
       goto error;
     }
+    // Parse and store a const instruction
     if (strcmp(command, "CONST") == 0) {
       if (sscanf(line, "%s %s %i", command, regString, &value) != 3) {
         printf("Error reading file: CONST command is malformed!\n");
@@ -154,6 +179,7 @@ int main(int argc, char* argv[]) {
       Instructions[nInstructions].u.value = value;
       Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else if (strncmp(command, "PUSH", 4) == 0) {
+      // Parse and store a push instruction
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: PUSH command is malformed!\n");
         goto error;
@@ -161,6 +187,7 @@ int main(int argc, char* argv[]) {
       Instructions[nInstructions].command = PUSH;
       Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else if (strncmp(command, "POP", 3) == 0) {
+      // Parse and store a pop instruction
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: POP command is malformed!\n");
         goto error;
@@ -168,24 +195,32 @@ int main(int argc, char* argv[]) {
       Instructions[nInstructions].command = POP;
       Instructions[nInstructions].reg = ParseRegFromString(regString);
     } else if (strncmp(command, "PRINTNUM", 8) == 0) {
+      // Store a printnum instruction
       Instructions[nInstructions].command = PRINTNUM;
     } else if (strncmp(command, "ADD", 3) == 0) {
+      // Store an add instruction
       Instructions[nInstructions].command = ADD;
     } else if (strncmp(command, "SUB", 3) == 0) {
+      // Store a sub instruction
       Instructions[nInstructions].command = SUB;
     } else if (strncmp(command, "MPY", 3) == 0) {
+      // Store a multiply instruction
       Instructions[nInstructions].command = MPY;
     } else if (strncmp(command, "DIV", 3) == 0) {
+      // Store a div instruction
       Instructions[nInstructions].command = DIV;
     } else if (strncmp(command, "MOD", 3) == 0) {
+      // Store a mod instruction
       Instructions[nInstructions].command = MOD;
     } else if (strncmp(command, "LABEL", 5) == 0) {
+      // Parse a label instruction
       if (sscanf(line, "%s %s", command, label) != 2) {
         printf("Error reading file: LABEL command is malformed!\n");
         goto error;
       }
       Instructions[nInstructions].command = LABEL;
 
+      // Add the label to the label list
       LabelList* newLabel = malloc(sizeof(LabelList));
       if (!newLabel) {
         printf("Could not allocate needed memory!\n");
@@ -200,6 +235,7 @@ int main(int argc, char* argv[]) {
       newLabel->next = labels;
       labels = newLabel;
     } else if (strncmp(command, "BRANCH", 5) == 0) {
+      // Parse a branch instruction
       if (sscanf(line, "%s %s %s", command, regString, label) != 3) {
         printf("Error reading file: BRANCH command is malformed!\n");
         goto error;
@@ -210,6 +246,7 @@ int main(int argc, char* argv[]) {
         printf("Could not allocate needed memory!\n");
         goto error;
       }
+      // figure out the exact type of the Branch
       if (strcmp(command, "BRANCHn") == 0) {
         Instructions[nInstructions].command = BRANCHn;
       } else if (strcmp(command, "BRANCHz") == 0) {
@@ -225,10 +262,12 @@ int main(int argc, char* argv[]) {
       } else if (strcmp(command, "BRANCHnzp") == 0) {
         Instructions[nInstructions].command = BRANCHnzp;
       } else {
+        // Disallow things like BRANCHnpz
         printf("Unknown BRANCH command encountered!\n");
         goto error;
       }
     } else if (strncmp(command, "JSR", 3) == 0) {
+      // Parse a JSR instruction
       if (sscanf(line, "%s %s", command, label) != 2) {
         printf("Error reading file: JSR command is malformed!\n");
         goto error;
@@ -240,6 +279,7 @@ int main(int argc, char* argv[]) {
         goto error;
       }
     } else if (strncmp(command, "JMPR", 4) == 0) {
+      // Parse a JMPR instruction
       if (sscanf(line, "%s %s", command, regString) != 2) {
         printf("Error reading file: JMPR command is malformed!\n");
         goto error;
@@ -253,6 +293,8 @@ int main(int argc, char* argv[]) {
     nInstructions++;
   }
 
+  // We are done reading the commands, no execute the instructions, starting at
+  // pc 0
   for (pc = 0; pc < nInstructions; pc++) {
     switch (Instructions[pc].command) {
       case CONST:

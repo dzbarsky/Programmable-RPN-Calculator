@@ -5,10 +5,8 @@ PUSH R2
 JSR GCD
 PRINTNUM
 JSR END
-LABEL ThesePRINTNUMSShouldNotPrint
-PRINTNUM
-PRINTNUM
-PRINTNUM
+
+
 LABEL GCD           Call is of form (a, b) - stack is a, b
 POP R7
 POP R2               top is a

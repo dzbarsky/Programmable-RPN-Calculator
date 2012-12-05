@@ -17,7 +17,7 @@ typedef enum {
   MPY,
   DIV,
   MOD,
-  LABEL,
+  NONE, //Used for labels and whitespace
   BRANCHn,
   BRANCHz,
   BRANCHp,
@@ -126,7 +126,6 @@ int main(int argc, char* argv[]) {
   int reg;
   int value;
   int pc;
-  int hadBlankLine = 0;
 
   if (argc != 2) {
     printf("Please supply exactly one script to execute!\n");
@@ -161,13 +160,9 @@ int main(int argc, char* argv[]) {
   // we see CONST, so we parse R2 and 5, and ignore everything after that.
   while (getline(&line, &nbytes, file) != -1) {
     if (sscanf(line, "%s", command) != 1) {
-      hadBlankLine = 1;
+      Instructions[nInstructions].command = NONE;
+      nInstructions++;
       continue;
-    }
-    // Don't allow blank lines
-    if (hadBlankLine) {
-      printf("Error reading file: Commands cannot follow blank line\n");
-      goto error;
     }
     // Parse and store a const instruction
     if (strcmp(command, "CONST") == 0) {
@@ -218,7 +213,7 @@ int main(int argc, char* argv[]) {
         printf("Error reading file: LABEL command is malformed!\n");
         goto error;
       }
-      Instructions[nInstructions].command = LABEL;
+      Instructions[nInstructions].command = NONE;
 
       // Add the label to the label list
       LabelList* newLabel = malloc(sizeof(LabelList));
@@ -346,7 +341,7 @@ int main(int argc, char* argv[]) {
         PushValue(numer % denom);
         break;
       }
-      case LABEL:
+      case NONE:
         break;
       case BRANCHn:
         pc = R[Instructions[pc].reg] < 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;

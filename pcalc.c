@@ -293,16 +293,20 @@ int main(int argc, char* argv[]) {
   for (pc = 0; pc < nInstructions; pc++) {
     switch (Instructions[pc].command) {
       case CONST:
+        // Store const in register
         R[Instructions[pc].reg] = Instructions[pc].u.value;
         break;
       case PUSH:
+        // Push a register
         PushValue(R[Instructions[pc].reg]);
         break;
       case POP:
+        // Pop to a register
         R[Instructions[pc].reg] = PopValue();
         break;
       case PRINTNUM:
       {
+        // Print value at top of stack
         if (!stack) {
           printf("Attempting to print from empty stack!\n");
           goto error;
@@ -310,6 +314,7 @@ int main(int argc, char* argv[]) {
         printf("%i\n", stack->value);
         break;
       }
+      // Arithmetic ops
       case ADD:
         PushValue(PopValue() + PopValue());
         break;
@@ -341,8 +346,11 @@ int main(int argc, char* argv[]) {
         PushValue(numer % denom);
         break;
       }
+      // Skip whitespace and label instructions
       case NONE:
         break;
+      // For the branches, subtract one from the pc because the for loop will
+      // increment the pc.
       case BRANCHn:
         pc = R[Instructions[pc].reg] < 0 ? GetPcForLabel(Instructions[pc].u.label) - 1 : pc;
         break;
@@ -385,6 +393,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
+    // If we encountered an error, we need to clean up and exit
     if (error) {
       goto cleanup;
     }
@@ -431,12 +440,15 @@ cleanup:
     labels = next;
   }
 
+  // Return the correct error code
   if (error) {
     return -1;
   }
 
   return 0;
 
+  // Allows us to goto error instead of setting the error flag everywhere there
+  // may be an erro (for example, every malloc call)
 error:
   error = 1;
   goto cleanup;
